@@ -1,39 +1,218 @@
-program LazyIvy;
+///////////////////////////////////////////////////////////////////////
+//                                                                   //
+//          READ THE DIRECTIONS IN THE OP FIRST OR ELSE              //
+//           Make sure you have setup your player file               //
+//                  Under SRL>PlayerManager                          //
+//                       Press Play                                  //
+//                                                                   //
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+program AshamanIvy;
   {$DEFINE SMART}
   {$I SRL-6/SRL.Simba}
+  {$i srl-6/lib/misc/srlplayerform.simba}
 
 const
-  WALL_DIRECTION = MM_DIRECTION_west;   //What direction is the wall facing?
-  ScriptVersion = 1.01;
-
-
+  ScriptVersion = '1.0';
+  BIR = 13;
+  BFR = 7;
 
 var
-  StartingXP: Integer;
-  timeout: TTimeMarker;
+  startingXP, direction, w, x, y, z, breakRounds, realBTime, totalBreaks: Integer;
+  timeout, currentBTime: TTimeMarker;
   XPH, XP: Extended;
-  NestColor: TIntegerArray = [2900293, 3031618, 2965832, 3032648];
-  NestTol: TIntegerArray = [5, 6, 5, 6];
-  NestHue: TExtendedArray = [0.20, 0.00, 0.20, 0.10];
-  NestSat: TExtendedArray = [2.04, 0.98, 2.25, 1.55];
   ivyData: TColorData = [4434008, 3, [2, [0.20, 0.41]]];
 
+procedure declarePlayers();
+var
+  i,j: integer;
+begin
+  players.setup(playerForm.playerNames, playerForm.playerFile); // load the SPF players from the SRL Player Manager
+  currentPlayer := 0;                                           // player to use first
 
-procedure declarePlayers;
+  // set player attributes based on the settings from the form
+  for i := 0 to high(players) do
+    with players[i] do
+    begin
+      // convert the integers
+      integers[0] := strToInt(playerForm.players[i].settings[0]);  //minutes until break
+      integers[1] := strToInt(playerForm.players[i].settings[1]);  //minutes to break
+
+
+      World :=  strToInt(playerForm.players[i].settings[2]);                    //world
+      ismember:=true;
+
+      Case playerForm.players[i].settings[6] Of
+        'NORTH': Direction := 0;
+        'SOUTH': Direction := 180;
+        'EAST': Direction := 90;
+        'WEST': Direction := 270;
+      End;
+
+      // booleans
+      booleans[0] := strToBool(playerForm.players[i].settings[3]);//take breaks
+      booleans[1] := strToBool(playerForm.players[i].settings[4]); //switch worlds
+      FindMod := strToBool(playerForm.players[i].settings[5]);
+    end;
+end;
+
+// initiates the SRL player form (you aren't restricted to the procedure name; it can be whatever you want)
+procedure initPlayerForm();
+begin
+  with playerForm do
+  begin
+    name := 'AshamanIvy v'+toStr(ScriptVersion); // the title of the SPF, usually the name of your script
+
+    editBoxLabels := ['Minutes until Break', '# of Minutes to Break', 'World']; // edit boxes are created for each array element
+    editBoxDefaults := ['600', '15', '0'];                                             // optional default values for each edit box; array length must equal editBoxLabel length
+    editBoxHints := ['How many minutes do you want to run the script before you break?',
+    'How many minutes do you want to break for?',
+    'Which world do you want to login to? 0 is random'];
+
+    checkBoxLabels := ['Take Breaks', 'Switch Worlds (After Break)', 'Logout if Mod is near'];        // same as editBoxLabels but for check boxes
+    checkBoxDefaults := ['True','True','True'];
+    checkBoxHints := ['Do you want to take breaks?',
+    'Do you want to switch worlds after you break?',
+    'Do you want to logout if a jmod is detected near you?'];
+
+    comboBoxLabels := ['Direction'];                                                // same as editBoxLabels but for combo boxes (drop down boxes)
+    comboBoxDefaults := ['NORTH'];
+    comboBoxHints := ['Which direction to rotate camera so you are facing Ivy'];
+
+    // this needs to be done for every element in the comboBoxLabels array
+    setLength(comboBoxItems, length(comboBoxLabels));
+    comboBoxItems[0] := ['NORTH','SOUTH','EAST','WEST'];       // all the options available for the first combo box
+  end;
+end;
+
+//by: Olly
+function GetGHPage(const URL: String): String;
+var
+  NewURL: String;
+  p: Integer;
+begin
+  Result := '';
+  p := Pos('.com/', URL);
+  if (p = 0) then
+    Exit;
+
+  NewURL := Copy(URL, p + Length('.com/'), Length(URL) - p + Length('.com/'));
+  Result := GetPage('http://cdn.rawgit.com/' +  Replace(NewURL, 'blob/', '', [rfReplaceAll]));
+end;
+
+{*******************************************************************************
+Function AutoupdateMe;
+By: Shuttleu
+Edited By: Ashaman88
+Description: Autoupdates Script.
+*******************************************************************************}
+Procedure autoUpdateMe;
+Var
+  Neifile: Integer;
+  OnlineVersion, NewScript, NeiFeilNennen: String;
 Begin
-  Players.Setup(['Player1'], 'PlayerList'); //***Fill this out, Player1 = Name of the account in player manager, PlayerList = name of the player file***
-  SetLength(Players,1);
-
-  //***If NOT using the player manager, fill out the loginname and password below, otherwise ignore those two***
-  With players[0] Do
+  Writeln('Checking for script updates...');
+  OnlineVersion := GetGHPage('https://github.com/ashaman88/AshamanIvy/blob/master/Version.txt');
+  Writeln('Online Version: '+ToStr(OnlineVersion));
+  Writeln('Local Version: '+ToStr(ScriptVersion));
+  If (trim(OnlineVersion) > ScriptVersion) Then
   Begin
-  // loginName := '';      {Remove the "//" from this line if you arent using player manager}
-  // password := '';       {Remove the "//" from this line if you arent using player manager}
-    IsActive := True;
-    World := 96;            {Change this if you want to set a world to login to}
-   // BankPin := ;         {Remove the "//" from this line if you arent using player manager and you have a pin}
-  End;
-  CurrentPlayer := 0;
+    WriteLn('Newer script version online!');
+    WriteLn('Autoupdating to newer version.');
+    NewScript := GetGHPage('https://github.com/ashaman88/AshamanIvy/blob/master/AshamanIvy.simba');
+    NeiFeilNennen := ScriptPath+ 'AshamanIvy V'+OnlineVersion+'.simba';
+    Neifile := Rewritefile(NeiFeilNennen, true);
+    Try
+      WriteFileString(Neifile, NewScript);
+    Except
+      Begin
+        WriteLn('Fatal error writing to '+NeiFeilNennen+'!!');
+        Terminatescript;
+      End;
+    End;
+    CloseFile(Neifile);
+    WriteLn('New script downloaded to '+NeiFeilNennen+'!! Please use this one!!');
+    TerminateScript;
+  End Else
+    WriteLn('You have the latest version of the script!');
+End;
+
+Function BreakHandler(BreakIn, BreakFor, randBreakIn, randBreakFor: Integer): Boolean;
+Var
+  H,M,S: Integer;
+Begin
+  If Not IsLoggedIn Then
+    Exit;
+
+  If (GetTimeRunning < ((W) + (Y) + BreakRounds)) Then
+    Exit Else
+    If (GetTimeRunning > ((W) + (Y) + BreakRounds)) Then
+    Begin
+      RealBTime := Round((X+Z)/60000);
+      Writeln('Taking a break for about ' + IntToStr(RealBTime) + ' minutes.');
+      Players[CurrentPlayer].Logout;
+      CurrentBTime.Start;
+      Repeat
+        Wait(21000);
+        ConvertTime((X+Z)-CurrentBTime.GetTime,H,M,S);
+        Writeln('Breaktime left: '+IntToStr(H)+':'+IntToStr(M)+':'+IntToStr(S));
+      Until(CurrentBTime.GetTime>(X+Z));
+      Writeln('Logging in.');
+      If Players[CurrentPlayer].booleans[1] Then
+        Players[CurrentPlayer].World := 0;
+      Players[CurrentPlayer].Login;
+      Wait(4000);
+      Timeout.Start;
+      Result := IsLoggedIn;
+      Minimap.SetAngle(direction);
+      MainScreen.SetAngle(MS_ANGLE_HIGH);
+      mainScreen.setZoom(false);
+      IncEx(BreakRounds, (W) + (X));
+      Inc(TotalBreaks);
+      Writeln('The next break will occur in about ' + IntToStr(BreakIn) + ' minutes.');
+      W := (BreakIn * 60000);
+      X := (BreakFor * 60000);
+      Y := RandomRange(-BIR * 60000, BIR * 60000);
+      Z := RandomRange(-BFR * 60000, BFR * 60000);
+    End;
 End;
 
 procedure findNormalRandoms;
@@ -160,9 +339,12 @@ begin
 end;
 
 procedure proggy;
+var
+  TTB: integer;
 begin
   clearDebug;
 
+  TTB := (((W) + (Y) + BreakRounds)-GetTimeRunning);
   XP := (ChatBox.GetXPbar - StartingXP);
   XPH := Round(XP * (3600.0 / (GetTimeRunning / 1000.0)));
 
@@ -173,6 +355,9 @@ begin
   writeln(PadR('| Exp Earned: ' + GroupDigits(XP,','), 40) + padR('Exp/Hour: ' + GroupDigits(XPH,','), 20) + '|');
   writeln('|___________________________________________________________|');
   writeln('|___________________________________________________________|');
+
+  if players[currentPlayer].booleans[0] then
+    writeln('Time until break: '+ msToTime(TTB, Time_Bare));
 end;
 
 procedure mainLoop;
@@ -195,7 +380,7 @@ begin
       disableSRLDebug := true;
     until isLoggedIn;
 
-    minimap.setAngle(WALL_DIRECTION);
+    minimap.setAngle(direction);
     mainScreen.setAngle(MS_ANGLE_HIGH);
     mainScreen.setZoom(false);
 
@@ -215,10 +400,22 @@ begin
     writeln('Nothing has happened for too long!');
     terminateScript;
   end;
+
+  if players[currentPlayer].booleans[0] then
+    breakHandler(players[currentPlayer].integers[0], players[currentPlayer].integers[1], BIR, BFR);
 end;
 
 procedure setup;
 begin
+  autoUpdateMe;
+
+  initPlayerForm(); // initiate your settings
+  runPlayerForm();  // run the form
+
+  // use this so the script doesn't continue if the user exits out of the form
+  if (not playerForm.isScriptReady) then
+    terminatescript;
+
   SRL_Events[EVENT_ANTIBAN] := @Antiban;
   smartEnableDrawing := true ;
   smartShowConsole := false;
@@ -227,7 +424,7 @@ begin
   disableSRLLog := true;
   disableSRLDebug := true;
   smartResetAttempts := -1;
-  mouseSpeed:= 29;
+  mouseSpeed:= randomRange(29, 32);
   setupSRL;
   declarePlayers;
 
@@ -241,7 +438,7 @@ begin
   end;
 
   startingXP := chatbox.getxpbar;
-  minimap.setAngle(WALL_DIRECTION);
+  minimap.setAngle(direction);
   mainScreen.setAngle(MS_ANGLE_HIGH);
 
   case MessageBox('Did you zoom in all the way already?', 'IvySetup', 3) of
@@ -252,6 +449,11 @@ begin
 
   findNormalRandoms;
   timeout.start;
+
+  W := (Players[CurrentPlayer].Integers[0] * 60000);
+  X := (Players[CurrentPlayer].Integers[1] * 60000);
+  Y := RandomRange(-BIR * 60000, BIR * 60000);
+  Z := RandomRange(-BFR * 60000, BFR * 60000);
 end;
 
 begin
