@@ -1,0 +1,261 @@
+program LazyIvy;
+  {$DEFINE SMART}
+  {$I SRL-6/SRL.Simba}
+
+const
+  WALL_DIRECTION = MM_DIRECTION_west;   //What direction is the wall facing?
+  ScriptVersion = 1.01;
+
+
+
+var
+  StartingXP: Integer;
+  timeout: TTimeMarker;
+  XPH, XP: Extended;
+  NestColor: TIntegerArray = [2900293, 3031618, 2965832, 3032648];
+  NestTol: TIntegerArray = [5, 6, 5, 6];
+  NestHue: TExtendedArray = [0.20, 0.00, 0.20, 0.10];
+  NestSat: TExtendedArray = [2.04, 0.98, 2.25, 1.55];
+  ivyData: TColorData = [4434008, 3, [2, [0.20, 0.41]]];
+
+
+procedure declarePlayers;
+Begin
+  Players.Setup(['Player1'], 'PlayerList'); //***Fill this out, Player1 = Name of the account in player manager, PlayerList = name of the player file***
+  SetLength(Players,1);
+
+  //***If NOT using the player manager, fill out the loginname and password below, otherwise ignore those two***
+  With players[0] Do
+  Begin
+  // loginName := '';      {Remove the "//" from this line if you arent using player manager}
+  // password := '';       {Remove the "//" from this line if you arent using player manager}
+    IsActive := True;
+    World := 96;            {Change this if you want to set a world to login to}
+   // BankPin := ;         {Remove the "//" from this line if you arent using player manager and you have a pin}
+  End;
+  CurrentPlayer := 0;
+End;
+
+procedure findNormalRandoms;
+begin
+  exitTreasure;
+  claimSpinTicket;
+end;
+
+procedure antiban;
+var
+  i: integer;
+Begin
+  i := random(2000);
+  case i of
+    1..5:
+      begin
+        hoverSkill(Skill_woodcutting);
+        wait(gaussRangeInt(1200, 2000));
+      end;
+    5..200: sleepAndMoveMouse(randomRange(400, 1500));
+    201..500:
+      begin
+        mouseOffClient(4);
+        wait(randomRange(2000, 2500));
+      end;
+  end;
+  wait(GaussRangeInt(0, 4000));
+End;
+
+function findIvy: boolean;
+var
+  i : integer;
+  TPA : TPointArray;
+  ATPA: T2DPointArray;
+  t, t2: TTimeMarker;
+begin
+  if not isLoggedIn then
+    exit;
+
+  t.start;
+  t2.start;
+
+  repeat
+    wait(randomrange(250, 500));
+    if ivyData.gatherIn(tpa, mainscreen.getBounds) then
+      break;
+
+    if (not isLoggedIn) then
+      exit;
+
+    if (t2.getTime > 10000) then
+    begin
+      mainscreen.setZoom(false);
+      t2.start;
+    end;
+  until (t.getTime > 20000);
+
+  atpa := tpa.toATPA(80, 60);
+  atpa.sortFromMidPoint(mainscreen.playerPoint);
+  atpa.filterBetween(0, 10);
+
+  try
+  smartImage.debugATPA(ATPA);
+  except
+  end;
+
+  for i := 0 to high(ATPA) do
+  begin
+    mouse(middleTPA(ATPA[i]), MOUSE_RIGHT);
+    if chooseoption.select(['Chop', 'ivy'],1000) then
+    begin
+      timeout.start;
+      exit(true);
+    end;
+  end;
+end;
+
+procedure waitWhileChopping;
+var
+  origXP, idleTime: integer;
+  TPA : TPointArray;
+  t: TTimeMarker;
+  coords : TBox = [257,151,316,181];
+begin
+  smartImage.clear;
+  smartImage.drawBox(coords);
+
+  if not isLoggedIn then
+    exit;
+
+  idleTime := randomrange(250000,270000);
+  origXP := chatBox.getXPBar;
+
+  repeat
+    wait(randomRange(1500, 2000));
+    if not ivyData.gatherIn(tpa, coords) then
+    begin
+      Writeln('Ivy Disappeared!');
+      exit;
+    end;
+
+  {  if BirdsNest then
+      if FindNest then
+        IdentifyIvy;  }
+
+    if (timeout.getTime > idleTime) then
+    begin
+      writeln('4 Minutes passed, finding new ivy!');
+      break;
+    end;
+
+    if chatBox.getXPBar > origXP then
+    begin
+      timeout.start;
+      origXP := chatBox.getXPBar;
+    end;
+
+
+    if not isLoggedIn then
+      exit;
+
+    antiban;
+  until false;
+end;
+
+procedure proggy;
+begin
+  clearDebug;
+
+  XP := (ChatBox.GetXPbar - StartingXP);
+  XPH := Round(XP * (3600.0 / (GetTimeRunning / 1000.0)));
+
+  writeln('|=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=|');
+  writeln('|                  AshamanIvy v'+PadR(toStr(ScriptVersion), 29), '|');
+  writeln('|=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=|');
+  writeln(PadR('| Running For: '+TimeRunning, 60)+'|');
+  writeln(PadR('| Exp Earned: ' + GroupDigits(XP,','), 40) + padR('Exp/Hour: ' + GroupDigits(XPH,','), 20) + '|');
+  writeln('|___________________________________________________________|');
+  writeln('|___________________________________________________________|');
+end;
+
+procedure mainLoop;
+var
+  i: integer;
+begin
+  if not isLoggedIn then
+  begin
+    writeln('Attempting to log back in');
+    disableSRLDebug := false;
+    repeat
+      currentPlayer := 0;
+      try
+        players[currentPlayer].login;
+        inc(i);
+      except
+      end;
+      if (i = -1) then
+        terminateScript;
+      disableSRLDebug := true;
+    until isLoggedIn;
+
+    minimap.setAngle(WALL_DIRECTION);
+    mainScreen.setAngle(MS_ANGLE_HIGH);
+    mainScreen.setZoom(false);
+
+    timeout.start;
+  end;
+
+  findNormalRandoms;
+
+  if findIvy then
+  begin
+    waitWhileChopping;
+    proggy;
+  end;
+
+  if (timeout.getTime > 600000) then
+  begin
+    writeln('Nothing has happened for too long!');
+    terminateScript;
+  end;
+end;
+
+procedure setup;
+begin
+  SRL_Events[EVENT_ANTIBAN] := @Antiban;
+  smartEnableDrawing := true ;
+  smartShowConsole := false;
+  smartUserAgent := 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:33.0) Gecko/20100101 Firefox/33.0';
+  disableIPScreenshots:= true;
+  disableSRLLog := true;
+  disableSRLDebug := true;
+  smartResetAttempts := -1;
+  mouseSpeed:= 29;
+  setupSRL;
+  declarePlayers;
+
+  if not isLoggedIn then
+  begin
+    if not players[currentPlayer].login then
+      terminateScript;
+
+    writeln('Just loggedin, waiting a bit');
+    wait(randomRange(1000, 2000));
+  end;
+
+  startingXP := chatbox.getxpbar;
+  minimap.setAngle(WALL_DIRECTION);
+  mainScreen.setAngle(MS_ANGLE_HIGH);
+
+  case MessageBox('Did you zoom in all the way already?', 'IvySetup', 3) of
+    6: writeln('if your sure lets do this');
+    else
+      begin Writeln('Ok zooming in!'); mainScreen.setZoom(false); end;
+  end;
+
+  findNormalRandoms;
+  timeout.start;
+end;
+
+begin
+   setup;
+   while (players.getActive() > 0) do
+    mainLoop;
+end.
