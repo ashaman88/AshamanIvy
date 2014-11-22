@@ -59,7 +59,7 @@ var
   startingXP, direction, w, x, y, z, breakRounds, realBTime, totalBreaks: Integer;
   timeout, currentBTime: TTimeMarker;
   XPH, XP: Extended;
-  ivyData: TColorData = [4232285, 8, [2, [0.34, 1.05]]];
+  ivyData: TColorData = [4099673, 9, [2, [0.32, 0.95]]];
 
 procedure declarePlayers();
 var
@@ -377,7 +377,7 @@ begin
         inc(i);
       except
       end;
-      if (i = 10) then
+      if (i = -1) then
         terminateScript;
     until isLoggedIn;
     disableSRLDebug := true;
