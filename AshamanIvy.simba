@@ -377,10 +377,10 @@ begin
         inc(i);
       except
       end;
-      if (i = -1) then
+      if (i = 10) then
         terminateScript;
-      disableSRLDebug := true;
     until isLoggedIn;
+    disableSRLDebug := true;
 
     minimap.setAngle(direction);
     mainScreen.setAngle(MS_ANGLE_HIGH);
