@@ -59,7 +59,7 @@ var
   startingXP, direction, w, x, y, z, breakRounds, realBTime, totalBreaks: Integer;
   timeout, currentBTime: TTimeMarker;
   XPH, XP: Extended;
-  ivyData: TColorData = [4434008, 3, [2, [0.20, 0.41]]];
+  ivyData: TColorData = [4232285, 8, [2, [0.34, 1.05]]];
 
 procedure declarePlayers();
 var
@@ -123,19 +123,22 @@ begin
   end;
 end;
 
-//by: Olly
-function GetGHPage(const URL: String): String;
+function getRandomWords: string;
 var
-  NewURL: String;
-  p: Integer;
+  stringLeft, stringRight, word, text, text2: string;
 begin
-  Result := '';
-  p := Pos('.com/', URL);
-  if (p = 0) then
-    Exit;
+  stringLeft := '></li><li><div><span class=''crux''>';
+  stringRight := '</span></div></li><li><div>';
 
-  NewURL := Copy(URL, p + Length('.com/'), Length(URL) - p + Length('.com/'));
-  Result := GetPage('http://cdn.rawgit.com/' +  Replace(NewURL, 'blob/', '', [rfReplaceAll]));
+  word := getPage('http://www.randomlists.com/random-words');
+  text := between(stringLeft, stringRight, word);
+
+  word := getPage('http://www.randomlists.com/random-words');
+  Text2 := Between(stringLeft, stringRight, word);
+
+  text := capitalize(trim(text));
+  text2 := capitalize(trim(text2));
+  result := (text + ' ' + text2);
 end;
 
 {*******************************************************************************
@@ -150,14 +153,14 @@ Var
   OnlineVersion, NewScript, NeiFeilNennen: String;
 Begin
   Writeln('Checking for script updates...');
-  OnlineVersion := GetGHPage('https://github.com/ashaman88/AshamanIvy/blob/master/Version.txt');
+  OnlineVersion := GetPage('http://static.frement.net/proxy.php?u=https://raw.githubusercontent.com/ashaman88/AshamanIvy/master/Version.txt');
   Writeln('Online Version: '+ToStr(OnlineVersion));
   Writeln('Local Version: '+ToStr(ScriptVersion));
   If (trim(OnlineVersion) > ScriptVersion) Then
   Begin
     WriteLn('Newer script version online!');
     WriteLn('Autoupdating to newer version.');
-    NewScript := GetGHPage('https://github.com/ashaman88/AshamanIvy/blob/master/AshamanIvy.simba');
+    NewScript := GetPage('http://static.frement.net/proxy.php?u=https://raw.githubusercontent.com/ashaman88/AshamanIvy/master/AshamanIvy.simba');
     NeiFeilNennen := ScriptPath+ 'AshamanIvy V'+OnlineVersion+'.simba';
     Neifile := Rewritefile(NeiFeilNennen, true);
     Try
@@ -293,9 +296,9 @@ end;
 procedure waitWhileChopping;
 var
   origXP, idleTime: integer;
-  TPA : TPointArray;
+  TPA: TPointArray;
   t: TTimeMarker;
-  coords : TBox = [257,151,316,181];
+  coords: TBox = [257,151,316,181];
 begin
   smartImage.clear;
   smartImage.drawBox(coords);
@@ -303,24 +306,21 @@ begin
   if not isLoggedIn then
     exit;
 
-  idleTime := randomrange(250000,270000);
+  idleTime := randomrange(250000, 270000);
   origXP := chatBox.getXPBar;
+  t.start;
 
   repeat
     wait(randomRange(1500, 2000));
     if not ivyData.gatherIn(tpa, coords) then
     begin
-      Writeln('Ivy Disappeared!');
+      Writeln('Ivy Gone bye bye!');
       exit;
     end;
 
-  {  if BirdsNest then
-      if FindNest then
-        IdentifyIvy;  }
-
-    if (timeout.getTime > idleTime) then
+    if (t.getTime > idleTime) then
     begin
-      writeln('4 Minutes passed, finding new ivy!');
+      writeln('Too much time has passed, finding new ivy!');
       break;
     end;
 
@@ -329,7 +329,6 @@ begin
       timeout.start;
       origXP := chatBox.getXPBar;
     end;
-
 
     if not isLoggedIn then
       exit;
@@ -342,6 +341,9 @@ procedure proggy;
 var
   TTB: integer;
 begin
+  if not isLoggedIn then
+    exit;
+
   clearDebug;
 
   TTB := (((W) + (Y) + BreakRounds)-GetTimeRunning);
@@ -425,6 +427,7 @@ begin
   disableSRLDebug := true;
   smartResetAttempts := -1;
   mouseSpeed:= randomRange(29, 32);
+  disguise(getRandomWords);
   setupSRL;
   declarePlayers;
 
