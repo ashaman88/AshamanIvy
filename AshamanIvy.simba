@@ -285,7 +285,7 @@ begin
   for i := 0 to high(ATPA) do
   begin
     mouse(middleTPA(ATPA[i]), MOUSE_RIGHT);
-    if chooseoption.select(['Chop', 'ivy'],1000) then
+    if chooseoption.select(['Ivy', 'ivy', 'vy'],1000) then
     begin
       timeout.start;
       exit(true);
@@ -400,6 +400,7 @@ begin
   if (timeout.getTime > 600000) then
   begin
     writeln('Nothing has happened for too long!');
+    SaveScreenshot(ScriptPath + timeRunning() + '_' + 'IvyFail.png');
     terminateScript;
   end;
 
