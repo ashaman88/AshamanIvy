@@ -51,7 +51,7 @@ program AshamanIvy;
   {$i srl-6/lib/misc/srlplayerform.simba}
 
 const
-  ScriptVersion = '1.0';
+  ScriptVersion = '1.01';
   BIR = 13;
   BFR = 7;
 
