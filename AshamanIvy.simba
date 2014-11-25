@@ -51,7 +51,7 @@ program AshamanIvy;
   {$i srl-6/lib/misc/srlplayerform.simba}
 
 const
-  ScriptVersion = '1.01';
+  ScriptVersion = '1.02';
   BIR = 13;
   BFR = 7;
 
@@ -59,7 +59,7 @@ var
   startingXP, direction, w, x, y, z, breakRounds, realBTime, totalBreaks: Integer;
   timeout, currentBTime: TTimeMarker;
   XPH, XP: Extended;
-  ivyData: TColorData = [4099673, 9, [2, [0.32, 0.95]]];
+  ivyData: TColorData = [3838552, 9, [2, [0.31, 1.32]]];
 
 procedure declarePlayers();
 var
