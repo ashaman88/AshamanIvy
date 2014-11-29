@@ -51,15 +51,15 @@ program AshamanIvy;
   {$i srl-6/lib/misc/srlplayerform.simba}
 
 const
-  ScriptVersion = '1.02';
+  ScriptVersion = '1.03';
   BIR = 13;
   BFR = 7;
 
 var
-  startingXP, direction, w, x, y, z, breakRounds, realBTime, totalBreaks: Integer;
+  startingXP, direction, w, x, y, z, breakRounds, realBTime, totalBreaks, scriptPaintBMP: integer;
   timeout, currentBTime: TTimeMarker;
   XPH, XP: Extended;
-  ivyData: TColorData = [3838552, 9, [2, [0.31, 1.32]]];
+  ivyData: TColorData = [3970906, 14, [2, [0.22, 0.85]]];
 
 procedure declarePlayers();
 var
@@ -80,17 +80,27 @@ begin
       World :=  strToInt(playerForm.players[i].settings[2]);                    //world
       ismember:=true;
 
-      Case playerForm.players[i].settings[6] Of
+      Case playerForm.players[i].settings[7] Of
         'NORTH': Direction := 0;
         'SOUTH': Direction := 180;
         'EAST': Direction := 90;
         'WEST': Direction := 270;
       End;
 
+      if (playerForm.players[i].settings[3] = '') then
+      begin
+        writeln('No UserAgent detected. Opening up webpage to get userAgent');
+        openWebPage('http://whatsmyuseragent.com/');
+        writeln('Copy your useragent text and paste it into the form');
+        writeln('Restart script');
+        terminateScript;
+      end else
+        smartUserAgent := playerForm.players[i].settings[3]; //useragent
+
       // booleans
-      booleans[0] := strToBool(playerForm.players[i].settings[3]);//take breaks
-      booleans[1] := strToBool(playerForm.players[i].settings[4]); //switch worlds
-      FindMod := strToBool(playerForm.players[i].settings[5]);
+      booleans[0] := strToBool(playerForm.players[i].settings[4]);//take breaks
+      booleans[1] := strToBool(playerForm.players[i].settings[5]); //switch worlds
+      FindMod := strToBool(playerForm.players[i].settings[6]);
     end;
 end;
 
@@ -101,11 +111,12 @@ begin
   begin
     name := 'AshamanIvy v'+toStr(ScriptVersion); // the title of the SPF, usually the name of your script
 
-    editBoxLabels := ['Minutes until Break', '# of Minutes to Break', 'World']; // edit boxes are created for each array element
-    editBoxDefaults := ['600', '15', '0'];                                             // optional default values for each edit box; array length must equal editBoxLabel length
+    editBoxLabels := ['Minutes until Break', '# of Minutes to Break', 'World', 'Client UserAgent']; // edit boxes are created for each array element
+    editBoxDefaults := ['600', '15', '0', ''];                                             // optional default values for each edit box; array length must equal editBoxLabel length
     editBoxHints := ['How many minutes do you want to run the script before you break?',
     'How many minutes do you want to break for?',
-    'Which world do you want to login to? 0 is random'];
+    'Which world do you want to login to? 0 is random',
+    'If you don''t know this, a popup will walk you through it after you hit start'];
 
     checkBoxLabels := ['Take Breaks', 'Switch Worlds (After Break)', 'Logout if Mod is near'];        // same as editBoxLabels but for check boxes
     checkBoxDefaults := ['True','True','True'];
@@ -139,6 +150,40 @@ begin
   text := capitalize(trim(text));
   text2 := capitalize(trim(text2));
   result := (text + ' ' + text2);
+end;
+
+procedure notifyMyPhone(title, message: string);
+const
+  TOKEN = 'aY3eNb21zg5XSwnH1585YPQwo8z2nT';
+  USER =  'uLWa2b66PHfdYf89vnpPQ7KFhBQLmk';
+  DEVICE = 'phone';
+var
+  c: integer;
+begin
+  c := initializeHTTPClient(false);
+  PostHTTPPage(c, 'http://api.pushover.net/1/messages.json', 'token=' + TOKEN + '&user=' + USER + '&device=' + DEVICE + '&title=' + title + '&message=' + message);
+  freeHTTPClient(c);
+end;
+
+function grabPaint: boolean;
+var
+  paintLink: string;    //Map Locations
+  paintName: String;      //Map Names
+  paintFile: LongInt;
+begin
+  paintName := scriptPath + 'prog.png';
+  paintLink := 'http://puu.sh/d6D0A/df2e730c75.png';
+  if (not fileExists(paintName)) then
+  begin
+    writeln('No file, downloading');
+    paintFile := createFile(paintName);
+    closeFile(paintFile);
+    paintFile := rewriteFile(paintName, false);
+    writeFileString(paintFile, getPage(paintLink));
+    closeFile(paintFile);
+  end;
+
+  result:= (fileExists(scriptPath + 'prog.png'));
 end;
 
 {*******************************************************************************
@@ -178,7 +223,7 @@ Begin
     WriteLn('You have the latest version of the script!');
 End;
 
-Function BreakHandler(BreakIn, BreakFor, randBreakIn, randBreakFor: Integer): Boolean;
+Function breakHandler(BreakIn, BreakFor, randBreakIn, randBreakFor: Integer): Boolean;
 Var
   H,M,S: Integer;
 Begin
@@ -275,17 +320,17 @@ begin
 
   atpa := tpa.toATPA(80, 60);
   atpa.sortFromMidPoint(mainscreen.playerPoint);
-  atpa.filterBetween(0, 10);
+  atpa.filterBetween(0, 15);
 
   try
-  smartImage.debugATPA(ATPA);
+    smartImage.debugATPA(ATPA);
   except
   end;
 
   for i := 0 to high(ATPA) do
   begin
     mouse(middleTPA(ATPA[i]), MOUSE_RIGHT);
-    if chooseoption.select(['Ivy', 'ivy', 'vy'],1000) then
+    if chooseoption.select(['p Ivy', 'Chop I'],1000) then
     begin
       timeout.start;
       exit(true);
@@ -293,16 +338,35 @@ begin
   end;
 end;
 
-procedure waitWhileChopping;
+function ivyPresent: boolean;
 var
-  origXP, idleTime: integer;
-  TPA: TPointArray;
+  time: integer;
+  tpa: TPointArray;
   t: TTimeMarker;
   coords: TBox = [257,151,316,181];
 begin
-  smartImage.clear;
+  smartImage.clearArea(mainScreen.getBounds);
   smartImage.drawBox(coords);
 
+  t.start;
+  time := randomRange(2000, 5000);
+  repeat
+    if not ivyData.gatherIn(tpa, coords) then
+      exit;
+
+    wait(100 + random(50));
+
+    result := length(tpa) > 50;
+  until result or t.getTime > time;
+  setLength(tpa, 0);
+end;
+
+procedure waitWhileChopping;
+var
+  origXP, idleTime: integer;
+  t: TTimeMarker;
+
+begin
   if not isLoggedIn then
     exit;
 
@@ -312,7 +376,7 @@ begin
 
   repeat
     wait(randomRange(1500, 2000));
-    if not ivyData.gatherIn(tpa, coords) then
+    if not ivyPresent then
     begin
       Writeln('Ivy Gone bye bye!');
       exit;
@@ -339,7 +403,7 @@ end;
 
 procedure proggy;
 var
-  TTB: integer;
+  TTB, tempXP: integer;
 begin
   if not isLoggedIn then
     exit;
@@ -347,11 +411,15 @@ begin
   clearDebug;
 
   TTB := (((W) + (Y) + BreakRounds)-GetTimeRunning);
-  XP := (ChatBox.GetXPbar - StartingXP);
+
+  tempXP := (ChatBox.GetXPbar - StartingXP);
+  if tempXP > 0 then
+    XP := tempXP;
+
   XPH := Round(XP * (3600.0 / (GetTimeRunning / 1000.0)));
 
   writeln('|=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=|');
-  writeln('|                  AshamanIvy v'+PadR(toStr(ScriptVersion), 29), '|');
+  writeln('|                     AshamanIvy v'+PadR(toStr(ScriptVersion), 26), '|');
   writeln('|=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=|');
   writeln(PadR('| Running For: '+TimeRunning, 60)+'|');
   writeln(PadR('| Exp Earned: ' + GroupDigits(XP,','), 40) + padR('Exp/Hour: ' + GroupDigits(XPH,','), 20) + '|');
@@ -360,6 +428,22 @@ begin
 
   if players[currentPlayer].booleans[0] then
     writeln('Time until break: '+ msToTime(TTB, Time_Bare));
+
+  smartImage.clear;
+  smartImage.drawBitmap(scriptPaintBMP, Point(6, 393));
+  smartImage.drawText(TimeRunning, Point(186, 468), 'smallChars', true, clWhite);
+  smartImage.drawText(groupDigits(XP,','), Point(124, 508), 'smallChars', true, clWhite);
+  smartImage.drawText(groupDigits(XPH,','), Point(88, 546), 'smallChars', true, clWhite);
+
+
+  case random(50) of
+    0: disguise(getRandomWords);
+  end;
+end;
+
+procedure terminate;
+begin
+  notifyMyPhone('AshamanIvy','Time Running: ' + ToStr(TimeRunning) + ' XP: ' + groupDigits(XP, ',') + ' XPH: ' + groupDigits(XPH, ','));
 end;
 
 procedure mainLoop;
@@ -422,15 +506,18 @@ begin
   SRL_Events[EVENT_ANTIBAN] := @Antiban;
   smartEnableDrawing := true ;
   smartShowConsole := false;
-  smartUserAgent := 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:33.0) Gecko/20100101 Firefox/33.0';
   disableIPScreenshots:= true;
   disableSRLLog := true;
   disableSRLDebug := true;
   smartResetAttempts := -1;
   mouseSpeed:= randomRange(29, 32);
   disguise(getRandomWords);
-  setupSRL;
+  grabPaint;
+  scriptPaintBMP := loadBitmap(scriptPath + 'prog.png');
+
   declarePlayers;
+
+  setupSRL;
 
   if not isLoggedIn then
   begin
@@ -458,6 +545,12 @@ begin
   X := (Players[CurrentPlayer].Integers[1] * 60000);
   Y := RandomRange(-BIR * 60000, BIR * 60000);
   Z := RandomRange(-BFR * 60000, BFR * 60000);
+
+  if fileExists(scriptPath + 'Version.txt') then
+  begin
+    writeln('you must be ashaman');
+    addOnTerminate('terminate');
+  end;
 end;
 
 begin
