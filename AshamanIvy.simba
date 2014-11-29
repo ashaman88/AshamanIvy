@@ -53,7 +53,7 @@ program AshamanIvy;
 const
   ScriptVersion = '1.03';
   BIR = 13;
-  BFR = 7;
+  BFR = 8;
 
 var
   startingXP, direction, w, x, y, z, breakRounds, realBTime, totalBreaks, scriptPaintBMP: integer;
